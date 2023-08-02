@@ -225,27 +225,25 @@ def extract_sac(
     if not os.path.exists(outdir):
         os.makedirs(outdir, exist_ok=True)
 
-    with Pool(processes=processes) as pool:
-        with tempfile.NamedTemporaryFile() as ftmp:
-            _write_winprm(ctable, ftmp.name)
-            sacfiles = pool.starmap(
-                _extract_channel_sac,
-                [(data, ch, suffix, outdir, ftmp.name, pmax) for ch in channels],
-            )
-            logger.info(
-                "%s SAC data successfully extracted.",
-                len(sacfiles) - sacfiles.count(None),
-            )
+    with tempfile.NamedTemporaryFile() as ftmp:
+        _write_winprm(ctable, ftmp.name)
+        sacfiles = []
+        for ch in channels:
+            sacfiles.append(_extract_channel_sac(data, ch, suffix, outdir, ftmp.name, pmax))
+        logger.info(
+            "%s SAC data successfully extracted.",
+            len(sacfiles) - sacfiles.count(None),
+        )
 
-        if with_sacpz:
-            # "SAC_PZ" here is hardcoded.
-            pzfiles = pool.starmap(
-                _extract_channel_sacpz, [(ch, "SAC_PZ", outdir) for ch in channels]
-            )
-            logger.info(
-                "%s SAC PZ files successfully extracted.",
-                len(pzfiles) - pzfiles.count(None),
-            )
+    if with_sacpz:
+        # "SAC_PZ" here is hardcoded.
+        pzfiles = []
+        for ch in channels:
+            pzfiles.append(_extract_channel_sacpz(ch, "SAC_PZ", outdir))
+        logger.info(
+            "%s SAC PZ files successfully extracted.",
+            len(pzfiles) - pzfiles.count(None),
+        )
 
 
 def extract_sacpz(
@@ -318,13 +316,12 @@ def extract_sacpz(
     if not os.path.exists(outdir):
         os.makedirs(outdir, exist_ok=True)
 
-    with Pool(processes=processes) as pool:
-        args = [(ch, suffix, outdir, keep_sensitivity) for ch in channels]
-        pzfiles = pool.starmap(_extract_channel_sacpz, args)
-        logger.info(
-            "%s SAC PZ files successfully extracted.",
-            len(pzfiles) - pzfiles.count(None),
-        )
+    args = [(ch, suffix, outdir, keep_sensitivity) for ch in channels]
+    pzfiles = _extract_channel_sacpz(args)
+    logger.info(
+        "%s SAC PZ files successfully extracted.",
+        len(pzfiles) - pzfiles.count(None),
+    )
 
 
 def extract_pz(ctable, **kwargs):

@@ -91,7 +91,7 @@ class BaseClient:
         password=None,
         timeout=60,
         retries=3,
-        sleep_time_in_seconds=5,
+        sleep_time_in_seconds=10,
         max_sleep_count=30,
     ):
         """
@@ -327,6 +327,7 @@ class ContinuousWaveformClient(BaseClient):
                             elif filename.endswith(".euc.ch"):
                                 ctable = filename
                         fz.extractall(members=cnts + [ctable])
+                    logger.info("%s", ctable)
                     return cnts, ctable
             except Exception:  # pylint: disable=broad-except
                 continue
@@ -344,7 +345,7 @@ class ContinuousWaveformClient(BaseClient):
         data=None,
         ctable=None,
         outdir=None,
-        threads=3,
+        threads=1,
         cleanup=True,
     ):
         """
@@ -470,7 +471,6 @@ class ContinuousWaveformClient(BaseClient):
 
         # 4. prepare jobs
         jobs = prepare_jobs(starttime, span, max_span)
-
         cnts, ch_euc = [], set()
         logger.info("%s ~%s", starttime.strftime("%Y-%m-%d %H:%M"), span)
         # 5. request and download
@@ -499,17 +499,20 @@ class ContinuousWaveformClient(BaseClient):
                 return None, None
 
             # 5.3. parallel downloading
-            with ThreadPool(min(threads, len(jobs))) as p:
-                rvalue = p.map(self._download_cont_waveform, jobs)
-            for value in rvalue:
-                cnts.extend(value[0])
-                ch_euc.add(value[1])
+            for job in jobs:
+                t_cnts, ch_euc = self._download_cont_waveform(job)
+                cnts.extend(t_cnts)
+            #with ThreadPool(min(threads, len(jobs))) as p:
+            #    rvalue = p.map(self._download_cont_waveform, jobs)
+            #for value in rvalue:
+            #    cnts.extend(value[0])
+            #    ch_euc.add(value[1])
 
         # post processes
         # 1. always sort cnts by name/time to avoid use -s option of catwin32
         cnts = sorted(cnts)
         #    always use the first ctable
-        ch_euc = list(sorted(ch_euc))[0]
+
 
         # 2. merge all cnt files
         if not data:
